@@ -1,0 +1,14 @@
+# IDE
+.idea/
+.vscode/
+
+# Go
+*.exe
+*.out
+*.test
+
+# OS
+.DS_Store
+
+# Local
+*.local

@@ -15,3 +15,14 @@ func TestNoiseZero(t *testing.T) {
 	}
 
 }
+
+func TestNoiseOne(t *testing.T) {
+	data := []byte{0, 0, 0}
+	result := AddNoise(data, 1)
+
+	for i := range result {
+		if result[i] != 255 {
+			t.Errorf("at index %d: expected 255, got %d", i, result[i])
+		}
+	}
+}

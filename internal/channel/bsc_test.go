@@ -29,7 +29,7 @@ func TestNoiseOne(t *testing.T) {
 func TestNoiseCopy(t *testing.T) {
 	data := []byte{0, 0, 0}
 	original := []byte{0, 0, 0}
-	AddNoise(data, 0.5)
+	_ = AddNoise(data, 0.5)
 
 	for i := range data {
 		if data[i] != original[i] {

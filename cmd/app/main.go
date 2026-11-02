@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
@@ -15,7 +15,7 @@ import (
 func main() {
 	a := app.New()
 	w := a.NewWindow("Исследование помехоустойчивого кодирования")
-	w.Resize(fyne.NewSize(500, 600))
+	w.Resize(fyne.NewSize(500, 650))
 
 	entryLength := widget.NewEntry()
 	entryLength.SetText("32")
@@ -29,6 +29,7 @@ func main() {
 	entryMaxBlocks.SetText("100000")
 
 	lblTotal := widget.NewLabel("Передано блоков: 0")
+	lblCorrect := widget.NewLabel("Корректно принято: 0")
 	lblDetected := widget.NewLabel("Обнаружено ошибок: 0")
 	lblMissed := widget.NewLabel("Пропущено ошибок (ложный прием): 0")
 
@@ -51,24 +52,34 @@ func main() {
 		lastResult = simulation.Run(lastConfig)
 
 		lblTotal.SetText(fmt.Sprintf("Передано блоков: %d", lastResult.Total))
+		lblCorrect.SetText(fmt.Sprintf("Корректно принято: %d", lastResult.Correct))
 		lblDetected.SetText(fmt.Sprintf("Обнаружено ошибок: %d", lastResult.Detected))
 		lblMissed.SetText(fmt.Sprintf("Пропущено ошибок (ложный прием): %d", lastResult.Missed))
 	})
 
-	btnExport := widget.NewButton("Экспорт результатов в CSV", func() {
-		file, err := os.Create("results.csv")
-		if err != nil {
-			dialog.ShowError(err, w)
-			return
-		}
-		defer file.Close()
+	btnExport := widget.NewButton("Сохранить как (CSV)...", func() {
+		fileSaveDialog := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error) {
+			if err != nil {
+				dialog.ShowError(err, w)
+				return
+			}
+			if writer == nil {
 
-		file.WriteString("P,Length,MaxErrors,MaxBlocks,Total,Detected,Missed\n")
-		file.WriteString(fmt.Sprintf("%f,%d,%d,%d,%d,%d,%d\n",
-			lastConfig.P, lastConfig.Length, lastConfig.MaxErrors, lastConfig.MaxBlocks,
-			lastResult.Total, lastResult.Detected, lastResult.Missed))
+				return
+			}
+			defer writer.Close()
 
-		dialog.ShowInformation("Экспорт", "Данные успешно сохранены в results.csv", w)
+			writer.Write([]byte("P,Length,MaxErrors,MaxBlocks,Total,Correct,Detected,Missed\n"))
+			dataRow := fmt.Sprintf("%f,%d,%d,%d,%d,%d,%d,%d\n",
+				lastConfig.P, lastConfig.Length, lastConfig.MaxErrors, lastConfig.MaxBlocks,
+				lastResult.Total, lastResult.Correct, lastResult.Detected, lastResult.Missed)
+			writer.Write([]byte(dataRow))
+
+			dialog.ShowInformation("Экспорт", "Данные успешно сохранены", w)
+		}, w)
+
+		fileSaveDialog.SetFileName("results.csv")
+		fileSaveDialog.Show()
 	})
 
 	form := container.NewVBox(
@@ -88,6 +99,7 @@ func main() {
 
 		widget.NewLabelWithStyle("Результаты симуляции:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		lblTotal,
+		lblCorrect,
 		lblDetected,
 		lblMissed,
 

@@ -16,6 +16,7 @@ type Config struct {
 
 type Result struct {
 	Total    int
+	Correct  int
 	Missed   int
 	Detected int
 }
@@ -42,6 +43,7 @@ func Run(cfg Config) Result {
 
 		encoded := coder.Encode(data)
 		received := channel.AddNoise(encoded, cfg.P)
+
 		detected := coder.Detect(received)
 
 		hasErrors := !sliceEqual(received, encoded)
@@ -50,11 +52,17 @@ func Run(cfg Config) Result {
 
 		if hasErrors {
 			errorsCount++
-			if detected {
+
+			if !detected {
+
 				result.Detected++
 			} else {
+
 				result.Missed++
 			}
+		} else {
+
+			result.Correct++
 		}
 
 		if errorsCount >= cfg.MaxErrors {

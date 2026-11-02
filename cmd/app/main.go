@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -13,7 +14,8 @@ import (
 )
 
 func main() {
-	a := app.New()
+
+	a := app.NewWithID("com.deflnam.coderesearch")
 	w := a.NewWindow("Исследование помехоустойчивого кодирования")
 	w.Resize(fyne.NewSize(500, 650))
 
@@ -25,6 +27,7 @@ func main() {
 
 	entryMaxErrors := widget.NewEntry()
 	entryMaxErrors.SetText("1000")
+
 	entryMaxBlocks := widget.NewEntry()
 	entryMaxBlocks.SetText("100000")
 
@@ -36,11 +39,33 @@ func main() {
 	var lastResult simulation.Result
 	var lastConfig simulation.Config
 
-	btnRun := widget.NewButton("Запустить моделирование", func() {
-		length, _ := strconv.Atoi(entryLength.Text)
-		p, _ := strconv.ParseFloat(entryP.Text, 64)
-		maxErr, _ := strconv.Atoi(entryMaxErrors.Text)
-		maxBlk, _ := strconv.Atoi(entryMaxBlocks.Text)
+	var btnRun *widget.Button
+
+	btnRun = widget.NewButton("Запустить моделирование", func() {
+
+		length, err := strconv.Atoi(entryLength.Text)
+		if err != nil || length < 1 || length > 1048576 {
+			dialog.ShowError(errors.New("Длина блока должна быть от 1 до 1 048 576 байт (1 МБ)"), w)
+			return
+		}
+
+		p, err := strconv.ParseFloat(entryP.Text, 64)
+		if err != nil || p < 0 || p > 1 {
+			dialog.ShowError(errors.New("Вероятность ошибки должна быть в диапазоне от 0.0 до 1.0"), w)
+			return
+		}
+
+		maxErr, err := strconv.Atoi(entryMaxErrors.Text)
+		if err != nil || maxErr < 1 {
+			dialog.ShowError(errors.New("Лимит ошибок должен быть целым числом больше 0"), w)
+			return
+		}
+
+		maxBlk, err := strconv.Atoi(entryMaxBlocks.Text)
+		if err != nil || maxBlk < 1 {
+			dialog.ShowError(errors.New("Лимит блоков должен быть целым числом больше 0"), w)
+			return
+		}
 
 		lastConfig = simulation.Config{
 			Length:    length,
@@ -49,22 +74,34 @@ func main() {
 			MaxBlocks: maxBlk,
 		}
 
-		lastResult = simulation.Run(lastConfig)
+		btnRun.Disable()
+		lblTotal.SetText("Выполняется симуляция, подождите...")
 
-		lblTotal.SetText(fmt.Sprintf("Передано блоков: %d", lastResult.Total))
-		lblCorrect.SetText(fmt.Sprintf("Корректно принято: %d", lastResult.Correct))
-		lblDetected.SetText(fmt.Sprintf("Обнаружено ошибок: %d", lastResult.Detected))
-		lblMissed.SetText(fmt.Sprintf("Пропущено ошибок (ложный прием): %d", lastResult.Missed))
+		go func() {
+
+			defer btnRun.Enable()
+
+			lastResult = simulation.Run(lastConfig)
+
+			lblTotal.SetText(fmt.Sprintf("Передано блоков: %d", lastResult.Total))
+			lblCorrect.SetText(fmt.Sprintf("Корректно принято: %d", lastResult.Correct))
+			lblDetected.SetText(fmt.Sprintf("Обнаружено ошибок: %d", lastResult.Detected))
+			lblMissed.SetText(fmt.Sprintf("Пропущено ошибок (ложный прием): %d", lastResult.Missed))
+		}()
 	})
 
 	btnExport := widget.NewButton("Сохранить как (CSV)...", func() {
+		if lastResult.Total == 0 {
+			dialog.ShowInformation("Внимание", "Сначала запустите моделирование", w)
+			return
+		}
+
 		fileSaveDialog := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if err != nil {
 				dialog.ShowError(err, w)
 				return
 			}
 			if writer == nil {
-
 				return
 			}
 			defer writer.Close()
@@ -75,7 +112,7 @@ func main() {
 				lastResult.Total, lastResult.Correct, lastResult.Detected, lastResult.Missed)
 			writer.Write([]byte(dataRow))
 
-			dialog.ShowInformation("Экспорт", "Данные успешно сохранены", w)
+			dialog.ShowInformation("Успех", "Данные успешно сохранены", w)
 		}, w)
 
 		fileSaveDialog.SetFileName("results.csv")

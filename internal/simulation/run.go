@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	P      float64
-	N      int
-	Length int
+	P         float64
+	Length    int
+	MaxErrors int
+	MaxBlocks int
 }
 
 type Result struct {
@@ -33,8 +34,9 @@ func sliceEqual(x, y []byte) bool {
 
 func Run(cfg Config) Result {
 	result := Result{}
+	errorsCount := 0
 
-	for i := 0; i < cfg.N; i++ {
+	for result.Total < cfg.MaxBlocks {
 		data := make([]byte, cfg.Length)
 		rand.Read(data)
 
@@ -46,11 +48,17 @@ func Run(cfg Config) Result {
 
 		result.Total++
 
-		if hasErrors && !detected {
-			result.Detected++
+		if hasErrors {
+			errorsCount++
+			if detected {
+				result.Detected++
+			} else {
+				result.Missed++
+			}
 		}
-		if hasErrors && detected {
-			result.Missed++
+
+		if errorsCount >= cfg.MaxErrors {
+			break
 		}
 	}
 
